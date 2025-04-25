@@ -488,13 +488,79 @@ if st.session_state.uploaded_df is not None:
             st.subheader("Cleaned Data Preview")
             st.dataframe(st.session_state.cleaned_df.head(20))
             
+            # Additional data cleaning options for download
+            with st.expander("Data Cleaning for Download", expanded=False):
+                st.markdown("### Clean file before downloading")
+                
+                # Data formats
+                st.markdown("#### Select additional cleaning options:")
+                clean_options = {}
+                clean_options["remove_outliers"] = st.checkbox("Remove outliers (beyond 3 standard deviations)", value=False)
+                clean_options["fill_missing"] = st.checkbox("Fill all missing values", value=True)
+                clean_options["smooth_data"] = st.checkbox("Apply smoothing", value=False)
+                
+                if clean_options["smooth_data"]:
+                    smooth_window = st.slider("Smoothing window size", min_value=2, max_value=15, value=5)
+                else:
+                    smooth_window = 5
+                    
+                # Create download-ready dataframe
+                if st.button("Prepare data for download"):
+                    with st.spinner("Applying additional cleaning..."):
+                        # Create a copy of the dataframe for download
+                        download_df = st.session_state.cleaned_df.copy()
+                        
+                        # Apply selected cleaning operations
+                        if clean_options["remove_outliers"]:
+                            for col in download_df.select_dtypes(include=['float64', 'int64']).columns:
+                                # Skip anomaly columns
+                                if col.endswith('_anomaly'):
+                                    continue
+                                    
+                                # Calculate bounds
+                                series = download_df[col]
+                                mean = series.mean()
+                                std = series.std()
+                                lower_bound = mean - 3 * std
+                                upper_bound = mean + 3 * std
+                                
+                                # Replace outliers with bounds
+                                download_df.loc[series < lower_bound, col] = lower_bound
+                                download_df.loc[series > upper_bound, col] = upper_bound
+                        
+                        if clean_options["fill_missing"]:
+                            # Interpolate missing values
+                            download_df = download_df.interpolate(method='linear')
+                            # Fill any remaining NaNs (at edges)
+                            download_df = download_df.fillna(method='ffill').fillna(method='bfill')
+                        
+                        if clean_options["smooth_data"]:
+                            for col in download_df.select_dtypes(include=['float64', 'int64']).columns:
+                                # Skip anomaly columns
+                                if col.endswith('_anomaly'):
+                                    continue
+                                    
+                                # Apply rolling mean for smoothing
+                                download_df[col] = download_df[col].rolling(window=smooth_window, center=True).mean()
+                            
+                            # Handle NaNs introduced by rolling mean
+                            download_df = download_df.fillna(method='ffill').fillna(method='bfill')
+                        
+                        # Store the download-ready dataframe
+                        st.session_state.download_df = download_df
+                        st.success("Data prepared for download. Use the download buttons below.")
+                else:
+                    # If not prepared, use the cleaned dataframe
+                    if "download_df" not in st.session_state:
+                        st.session_state.download_df = st.session_state.cleaned_df.copy()
+            
             # Download buttons
             col1, col2 = st.columns(2)
             
             with col1:
                 # Create a download button for the cleaned CSV
                 csv_buffer = io.StringIO()
-                st.session_state.cleaned_df.to_csv(csv_buffer)
+                st.session_state.download_df.to_csv(csv_buffer)
                 csv_str = csv_buffer.getvalue()
                 
                 st.download_button(
