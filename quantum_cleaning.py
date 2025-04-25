@@ -209,10 +209,18 @@ class QuantumCleaner:
             feature_vec = []
             for l in range(layers):
                 # Create non-linear features inspired by quantum transformations
-                # Convert to array if necessary to ensure element-wise operations
-                angle = np.pi * (l+1) * window
+                # Break down the operation to avoid "can't multiply sequence by non-int" error
+                # First, create a scalar multiplier
+                scalar = np.pi * (l+1)
+                # Then multiply each element of the window by this scalar
+                angle = np.array([scalar * w for w in window])
+                # Calculate the features
                 features = np.cos(angle) * np.sin(angle)
-                feature_vec.extend(features)
+                # Convert to list before extending if needed
+                if isinstance(features, np.ndarray):
+                    feature_vec.extend(features.tolist())
+                else:
+                    feature_vec.extend(features)
             
             # Add current value and position features
             feature_vec.append(values[i])
@@ -315,7 +323,10 @@ class QuantumCleaner:
                 # Simulate quantum-inspired basis functions
                 basis_funcs = []
                 for l in range(layers):
-                    phase = np.pi * l * positions
+                    # Safely compute phase for each position
+                    # This avoids the "can't multiply sequence by non-int" error
+                    scalar = np.pi * l
+                    phase = np.array([scalar * pos for pos in positions])
                     basis_funcs.append(np.sin(phase))
                     basis_funcs.append(np.cos(phase))
                 
