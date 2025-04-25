@@ -185,7 +185,9 @@ class QuantumCleaner:
             feature_vec = []
             for l in range(layers):
                 # Create non-linear features inspired by quantum transformations
-                features = np.cos(np.pi * (l+1) * window) * np.sin(np.pi * (l+1) * window)
+                # Convert to array if necessary to ensure element-wise operations
+                angle = np.pi * (l+1) * window
+                features = np.cos(angle) * np.sin(angle)
                 feature_vec.extend(features)
             
             # Add current value and position features

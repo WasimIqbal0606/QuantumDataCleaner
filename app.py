@@ -501,7 +501,8 @@ if st.session_state.uploaded_df is not None:
                     label="Download Cleaned Data (CSV)",
                     data=csv_str,
                     file_name=f"cleaned_data_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
-                    mime="text/csv"
+                    mime="text/csv",
+                    key="download_csv_btn1"
                 )
             
             with col2:
@@ -514,7 +515,8 @@ if st.session_state.uploaded_df is not None:
                         label="Download Detailed Report (PDF)",
                         data=pdf_bytes,
                         file_name=f"cleaning_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf",
-                        mime="application/pdf"
+                        mime="application/pdf",
+                        key="download_pdf_btn1"
                     )
         else:
             st.info("No cleaning results available yet. Start the cleaning process to see results.")
@@ -780,7 +782,8 @@ if st.session_state.uploaded_df is not None:
                     label="Download Detailed Report (PDF)",
                     data=pdf_bytes,
                     file_name=f"cleaning_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf",
-                    mime="application/pdf"
+                    mime="application/pdf",
+                    key="download_pdf_btn2"
                 )
         else:
             st.info("No logs available yet. Start the cleaning process to generate logs.")
