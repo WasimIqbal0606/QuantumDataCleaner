@@ -161,13 +161,56 @@ if st.session_state.uploaded_df is not None:
     # Advanced parameters (collapsible)
     with st.sidebar.expander("Advanced Parameters"):
         if cleaning_method == "Classical" or cleaning_method == "Hybrid (Auto-select)":
-            window_size = st.slider("Moving Average Window Size", 3, 20, 5)
-            z_threshold = st.slider("Z-Score Threshold", 1.5, 5.0, 3.0, 0.1)
-            use_median = st.checkbox("Use Median Filtering", True)
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                window_size = st.slider("Moving Average Window Size", 3, 20, 5)
+                z_threshold = st.slider("Z-Score Threshold", 1.5, 5.0, 3.0, 0.1)
+                use_median = st.checkbox("Use Median Filtering", True)
+                filtering_method = st.selectbox("Filtering Method", 
+                                               ["rolling", "ewm", "robust", "hampel", "savgol"])
+            
+            with col2:
+                # Advanced methods checkboxes
+                st.write("Advanced Methods:")
+                advanced_methods = []
+                
+                if st.checkbox("IQR Outlier Detection", False):
+                    advanced_methods.append("iqr")
+                    iqr_multiplier = st.slider("IQR Multiplier", 1.0, 3.0, 1.5, 0.1)
+                else:
+                    iqr_multiplier = 1.5
+                    
+                if st.checkbox("Hampel Filter", False):
+                    advanced_methods.append("hampel")
+                    
+                if st.checkbox("Wavelet Denoising", False):
+                    advanced_methods.append("wavelet")
+                    
+                if st.checkbox("Fourier Filtering", False):
+                    advanced_methods.append("fourier")
+                
+                # Performance optimization for large datasets
+                handle_large = st.checkbox("Optimize for Large Datasets", True, 
+                                         help="Process data in chunks for better performance")
+                if handle_large:
+                    chunk_size = st.slider("Chunk Size", 1000, 20000, 10000, 1000,
+                                         help="Larger chunks use more memory but process faster")
+                else:
+                    chunk_size = None
+            
             classical_params = {
                 "window_size": window_size,
                 "z_threshold": z_threshold,
-                "use_median": use_median
+                "use_median": use_median,
+                "advanced_methods": advanced_methods,
+                "filtering_method": filtering_method,
+                "interpolation_method": "linear",
+                "iqr_multiplier": iqr_multiplier,
+                "chunk_size": chunk_size,
+                "trend_removal": False,
+                "seasonal_adjust": False,
+                "spikes_only": False
             }
         
         if cleaning_method == "Deep Learning" or cleaning_method == "Hybrid (Auto-select)":
