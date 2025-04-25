@@ -21,6 +21,7 @@ from classical_cleaning import ClassicalCleaner
 from deep_model import DeepModelCleaner
 from bandit_selector import BanditSelector
 from quantum_cleaning import QuantumCleaner
+from database_service import TimeSeriesDatabase
 
 # Set page config
 st.set_page_config(
@@ -56,10 +57,12 @@ if 'report_path' not in st.session_state:
     st.session_state.report_path = None
 
 # Initialize cleaners
+# Initialize services and cleaners
 classical_cleaner = ClassicalCleaner()
 deep_model_cleaner = DeepModelCleaner()
 quantum_cleaner = QuantumCleaner()
 bandit_selector = BanditSelector()
+db_service = TimeSeriesDatabase() # Initialize the ChromaDB service
 
 # Title and introduction
 st.title("Hybrid Time-Series Cleaning System")
@@ -351,7 +354,7 @@ if st.session_state.uploaded_df is not None:
 # Main content area
 if st.session_state.uploaded_df is not None:
     # Tabs for different views
-    tabs = st.tabs(["Data Preview", "Cleaning Results", "Detailed Analysis", "Logs and Reports"])
+    tabs = st.tabs(["Data Preview", "Cleaning Results", "Detailed Analysis", "Logs and Reports", "Database & Search"])
     
     # Data Preview Tab
     with tabs[0]:
@@ -853,6 +856,274 @@ if st.session_state.uploaded_df is not None:
                 )
         else:
             st.info("No logs available yet. Start the cleaning process to generate logs.")
+    
+    # Database & Search Tab
+    with tabs[4]:
+        st.subheader("Time Series Database")
+        
+        # Intro text
+        st.markdown("""
+        This tab allows you to store, search, and retrieve time-series data using vector similarity.
+        The system uses ChromaDB to create embeddings of time-series data and find similar patterns.
+        """)
+        
+        # Two sections
+        tab1, tab2 = st.tabs(["Store & Manage Data", "Search & Retrieve"])
+        
+        # Store & Manage Data tab
+        with tab1:
+            st.markdown("### Store Current Data")
+            
+            if st.session_state.cleaned_df is not None:
+                # Form for submitting data to database
+                with st.form("store_form"):
+                    description = st.text_area("Description", 
+                                             "Time series data cleaned with Advanced Hybrid Time-Series Cleaning System", 
+                                             help="Provide a description for this time series data")
+                    
+                    tags = st.text_input("Tags (comma-separated)", 
+                                        "cleaned, time-series", 
+                                        help="Add tags to help with later retrieval")
+                    
+                    source = st.text_input("Data Source", 
+                                          "Custom upload", 
+                                          help="Where did this data come from?")
+                    
+                    # Store metadata about the cleaning method
+                    method_info = "unknown"
+                    if "method" in st.session_state.metadata:
+                        method_info = st.session_state.metadata["method"]
+                        if method_info == "hybrid" and "selected_method" in st.session_state.metadata:
+                            method_info += f"-{st.session_state.metadata['selected_method']}"
+                    
+                    # Submit button
+                    submit = st.form_submit_button("Store in Database")
+                    
+                    if submit:
+                        try:
+                            # Prepare metadata
+                            metadata = {
+                                "description": description,
+                                "tags": tags,
+                                "source": source,
+                                "cleaning_method": method_info,
+                                "stored_date": datetime.now().isoformat(),
+                                "user_comment": "Stored via Hybrid Time-Series Cleaning System"
+                            }
+                            
+                            # Add cleaning metadata if available
+                            if st.session_state.metadata:
+                                for key, value in st.session_state.metadata.items():
+                                    if isinstance(value, (str, int, float, bool)) and key not in metadata:
+                                        metadata[key] = value
+                            
+                            # Store in database
+                            job_id = db_service.store_time_series(
+                                df=st.session_state.cleaned_df,
+                                column=st.session_state.selected_column,
+                                metadata=metadata,
+                                job_id=st.session_state.job_id
+                            )
+                            
+                            st.success(f"Successfully stored time series in database with ID: {job_id}")
+                        except Exception as e:
+                            st.error(f"Error storing time series: {str(e)}")
+                
+                # Display divider
+                st.markdown("---")
+            else:
+                st.info("Clean your data first to store it in the database.")
+            
+            # List and manage stored time series
+            st.markdown("### Manage Stored Data")
+            
+            if st.button("Refresh Database Entries"):
+                stored_items = db_service.list_all_time_series()
+                if stored_items:
+                    st.session_state.stored_items = stored_items
+                    st.success(f"Found {len(stored_items)} stored time series.")
+                else:
+                    st.info("No time series found in the database.")
+                    st.session_state.stored_items = []
+            
+            # Display stored items if available
+            if "stored_items" in st.session_state and st.session_state.stored_items:
+                st.markdown("#### Stored Time Series")
+                
+                for i, item in enumerate(st.session_state.stored_items):
+                    with st.expander(f"{i+1}. {item['job_id']} - {item['metadata'].get('description', 'No description')}"):
+                        st.markdown(f"**Description:** {item['description']}")
+                        
+                        # Create two columns for metadata display
+                        col1, col2 = st.columns(2)
+                        
+                        # Display metadata
+                        with col1:
+                            st.markdown("**Metadata:**")
+                            meta_df = pd.DataFrame(
+                                [(k, str(v)) for k, v in item["metadata"].items() if k not in ["description"]],
+                                columns=["Property", "Value"]
+                            )
+                            st.dataframe(meta_df, use_container_width=True)
+                        
+                        # Add delete button
+                        with col2:
+                            if st.button(f"Delete Entry", key=f"delete_{item['job_id']}"):
+                                if db_service.delete_time_series(item['job_id']):
+                                    st.success(f"Successfully deleted time series {item['job_id']}")
+                                    # Remove from session state list
+                                    st.session_state.stored_items = [i for i in st.session_state.stored_items 
+                                                                if i['job_id'] != item['job_id']]
+                                    st.rerun()
+                                else:
+                                    st.error(f"Failed to delete time series {item['job_id']}")
+            else:
+                st.info("Click 'Refresh Database Entries' to view stored time series data.")
+                
+        # Search & Retrieve tab
+        with tab2:
+            st.markdown("### Find Similar Time Series")
+            
+            # Two search options
+            search_method = st.radio("Search Method", 
+                                    ["Find Similar to Current Data", "Search by Metadata"])
+            
+            if search_method == "Find Similar to Current Data":
+                if st.session_state.uploaded_df is not None:
+                    n_results = st.slider("Number of Results", 1, 10, 3)
+                    
+                    if st.button("Find Similar Time Series"):
+                        with st.spinner("Searching for similar time series..."):
+                            try:
+                                results = db_service.find_similar_time_series(
+                                    df=st.session_state.uploaded_df,
+                                    column=st.session_state.selected_column,
+                                    n_results=n_results
+                                )
+                                
+                                if results:
+                                    st.success(f"Found {len(results)} similar time series.")
+                                    st.session_state.similar_results = results
+                                else:
+                                    st.info("No similar time series found.")
+                                    st.session_state.similar_results = []
+                            except Exception as e:
+                                st.error(f"Error searching for similar time series: {str(e)}")
+                    
+                    # Display results if available
+                    if "similar_results" in st.session_state and st.session_state.similar_results:
+                        st.markdown("#### Similar Time Series Results")
+                        
+                        for i, result in enumerate(st.session_state.similar_results):
+                            similarity = result.get("similarity", 0) * 100
+                            with st.expander(f"{i+1}. Similarity: {similarity:.1f}% - {result['job_id']}"):
+                                st.markdown(f"**Description:** {result['description']}")
+                                
+                                # Show metadata
+                                st.markdown("**Metadata:**")
+                                meta_df = pd.DataFrame(
+                                    [(k, str(v)) for k, v in result["metadata"].items() if k not in ["description"]],
+                                    columns=["Property", "Value"]
+                                )
+                                st.dataframe(meta_df, use_container_width=True)
+                else:
+                    st.info("Upload or load example data first to search for similar time series.")
+            
+            elif search_method == "Search by Metadata":
+                st.markdown("### Search by Metadata")
+                
+                # Create a search form
+                with st.form("metadata_search_form"):
+                    # Common metadata search fields
+                    cleaning_method = st.selectbox("Cleaning Method", 
+                                                ["Any", "classical", "deep_learning", "quantum", "hybrid"])
+                    
+                    tags_input = st.text_input("Tags (comma-separated)", 
+                                            "",
+                                            help="Enter tags to search for")
+                    
+                    # Date range for stored_date if available
+                    date_filter = st.checkbox("Filter by Storage Date")
+                    
+                    if date_filter:
+                        today = datetime.now()
+                        start_date = st.date_input("Start Date", today - pd.Timedelta(days=30))
+                        end_date = st.date_input("End Date", today)
+                    
+                    # Submit button
+                    submit_search = st.form_submit_button("Search")
+                    
+                    if submit_search:
+                        # Prepare filter
+                        metadata_filter = {}
+                        
+                        if cleaning_method != "Any":
+                            metadata_filter["cleaning_method"] = cleaning_method
+                        
+                        if tags_input:
+                            # We'll do a simple substring check in the application
+                            # since ChromaDB doesn't support substring search well
+                            metadata_filter["_tags"] = tags_input
+                            
+                        if date_filter:
+                            # We'll handle date filtering in the application
+                            # Store the date range in session state to filter results
+                            st.session_state.date_range = {
+                                "start": start_date,
+                                "end": end_date
+                            }
+                        
+                        # Search the database
+                        try:
+                            results = db_service.search_by_metadata(metadata_filter)
+                            
+                            # Post-process results
+                            filtered_results = []
+                            for result in results:
+                                # Apply tag filtering if specified
+                                if tags_input and "_tags" in metadata_filter:
+                                    tags = result["metadata"].get("tags", "")
+                                    if not any(tag.strip() in tags for tag in tags_input.split(",")):
+                                        continue
+                                
+                                # Apply date filtering if specified
+                                if date_filter and "date_range" in st.session_state:
+                                    stored_date_str = result["metadata"].get("stored_date", "")
+                                    if stored_date_str:
+                                        try:
+                                            stored_date = datetime.fromisoformat(stored_date_str).date()
+                                            if stored_date < st.session_state.date_range["start"] or \
+                                            stored_date > st.session_state.date_range["end"]:
+                                                continue
+                                        except:
+                                            pass
+                                
+                                filtered_results.append(result)
+                            
+                            if filtered_results:
+                                st.success(f"Found {len(filtered_results)} matching time series.")
+                                st.session_state.metadata_results = filtered_results
+                            else:
+                                st.info("No matching time series found.")
+                                st.session_state.metadata_results = []
+                        except Exception as e:
+                            st.error(f"Error searching by metadata: {str(e)}")
+                
+                # Display results if available
+                if "metadata_results" in st.session_state and st.session_state.metadata_results:
+                    st.markdown("#### Search Results")
+                    
+                    for i, result in enumerate(st.session_state.metadata_results):
+                        with st.expander(f"{i+1}. {result['job_id']} - {result['metadata'].get('description', 'No description')}"):
+                            st.markdown(f"**Description:** {result['description']}")
+                            
+                            # Show metadata
+                            st.markdown("**Metadata:**")
+                            meta_df = pd.DataFrame(
+                                [(k, str(v)) for k, v in result["metadata"].items() if k not in ["description"]],
+                                columns=["Property", "Value"]
+                            )
+                            st.dataframe(meta_df, use_container_width=True)
 else:
     # Display guidance when no data is loaded
     st.info("Please upload a time-series data file (CSV or JSON) or load example data to begin.")

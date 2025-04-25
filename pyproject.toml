@@ -4,6 +4,7 @@ version = "0.1.0"
 description = "Add your description here"
 requires-python = ">=3.11"
 dependencies = [
+    "chromadb>=1.0.7",
     "fpdf>=1.7.2",
     "matplotlib>=3.10.1",
     "numpy>=2.2.5",
