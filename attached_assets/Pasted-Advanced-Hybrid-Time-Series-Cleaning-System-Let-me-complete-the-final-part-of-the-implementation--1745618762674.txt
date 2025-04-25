@@ -1,0 +1,280 @@
+Advanced Hybrid Time-Series Cleaning System
+Let me complete the final part of the implementation - the generate_report function in the utils module:
+
+Copydef generate_report(original_df: pd.DataFrame, cleaned_df: pd.DataFrame, metadata: Dict[str, Any], 
+                    job_id: str, output_path: str) -> None:
+    """
+    Generate a PDF report summarizing the cleaning results.
+    
+    Args:
+        original_df: Original DataFrame before cleaning
+        cleaned_df: Cleaned DataFrame after processing
+        metadata: Metadata about the cleaning process
+        job_id: Unique job identifier
+        output_path: Path to save the PDF report
+    """
+    try:
+        logger.info(f"Generating report for job {job_id}")
+        
+        # Create PDF document
+        pdf = FPDF()
+        pdf.add_page()
+        
+        # Set up fonts
+        pdf.set_font("Arial", "B", 16)
+        
+        # Title
+        pdf.cell(0, 10, "Time Series Cleaning Report", ln=True, align="C")
+        pdf.set_font("Arial", "", 12)
+        pdf.cell(0, 10, f"Job ID: {job_id}", ln=True, align="C")
+        pdf.cell(0, 10, f"Date: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}", ln=True, align="C")
+        pdf.ln(10)
+        
+        # Cleaning method details
+        pdf.set_font("Arial", "B", 14)
+        pdf.cell(0, 10, "Cleaning Method", ln=True)
+        pdf.set_font("Arial", "", 12)
+        
+        method = metadata.get("method", "unknown")
+        pdf.cell(0, 10, f"Method: {method.capitalize()}", ln=True)
+        
+        # Parameters section
+        if "parameters" in metadata:
+            pdf.cell(0, 10, "Parameters:", ln=True)
+            params = metadata["parameters"]
+            for key, value in params.items():
+                pdf.cell(0, 10, f"- {key}: {value}", ln=True)
+        pdf.ln(5)
+        
+        # Results summary
+        pdf.set_font("Arial", "B", 14)
+        pdf.cell(0, 10, "Cleaning Results", ln=True)
+        pdf.set_font("Arial", "", 12)
+        
+        pdf.cell(0, 10, f"Anomalies Detected: {metadata.get('anomalies_detected', 0)}", ln=True)
+        pdf.cell(0, 10, f"Missing Values Filled: {metadata.get('missing_values_filled', 0)}", ln=True)
+        
+        if "execution_time_ms" in metadata:
+            exec_time = metadata["execution_time_ms"]
+            pdf.cell(0, 10, f"Execution Time: {exec_time} ms ({exec_time/1000:.2f} seconds)", ln=True)
+        pdf.ln(5)
+        
+        # Create visualization of original vs cleaned data
+        try:
+            # Find a numeric column to visualize
+            numeric_cols = original_df.select_dtypes(include=[np.number]).columns
+            # Skip anomaly indicator columns
+            numeric_cols = [col for col in numeric_cols if not col.endswith('_anomaly')]
+            
+            if len(numeric_cols) > 0:
+                # Select the first numeric column
+                col_to_plot = numeric_cols[0]
+                
+                # Create figure
+                plt.figure(figsize=(10, 6))
+                plt.plot(original_df.index, original_df[col_to_plot], 'o-', alpha=0.7, label='Original')
+                plt.plot(cleaned_df.index, cleaned_df[col_to_plot], 'o-', alpha=0.7, label='Cleaned')
+                plt.title(f'Original vs Cleaned: {col_to_plot}')
+                plt.xlabel('Index')
+                plt.ylabel('Value')
+                plt.legend()
+                plt.grid(True, alpha=0.3)
+                
+                # Save figure to temporary file
+                temp_fig_path = f"reports/temp_fig_{job_id}.png"
+                plt.savefig(temp_fig_path, dpi=100, bbox_inches='tight')
+                plt.close()
+                
+                # Add figure to PDF
+                pdf.ln(5)
+                pdf.set_font("Arial", "B", 14)
+                pdf.cell(0, 10, "Data Visualization", ln=True)
+                pdf.image(temp_fig_path, x=10, y=None, w=180)
+                pdf.ln(85)  # Make space for the image
+                
+                # Clean up temporary file
+                try:
+                    os.remove(temp_fig_path)
+                except:
+                    pass
+                
+        except Exception as e:
+            logger.error(f"Error creating visualization: {e}")
+            pdf.cell(0, 10, "Error creating visualization", ln=True)
+        
+        # Statistics comparison
+        pdf.set_font("Arial", "B", 14)
+        pdf.cell(0, 10, "Statistics Comparison", ln=True)
+        pdf.set_font("Arial", "", 12)
+        
+        # Create a statistics table
+        try:
+            # Calculate statistics for numeric columns
+            numeric_cols = original_df.select_dtypes(include=[np.number]).columns
+            # Skip anomaly indicator columns
+            numeric_cols = [col for col in numeric_cols if not col.endswith('_anomaly')]
+            
+            if len(numeric_cols) > 0:
+                # Select the first column for detailed stats
+                col_to_analyze = numeric_cols[0]
+                
+                # Calculate statistics
+                orig_mean = original_df[col_to_analyze].mean()
+                clean_mean = cleaned_df[col_to_analyze].mean()
+                orig_std = original_df[col_to_analyze].std()
+                clean_std = cleaned_df[col_to_analyze].std()
+                orig_min = original_df[col_to_analyze].min()
+                clean_min = cleaned_df[col_to_analyze].min()
+                orig_max = original_df[col_to_analyze].max()
+                clean_max = cleaned_df[col_to_analyze].max()
+                
+                # Table header
+                pdf.cell(60, 10, "Statistic", 1)
+                pdf.cell(60, 10, "Original Data", 1)
+                pdf.cell(60, 10, "Cleaned Data", 1, ln=True)
+                
+                # Table rows
+                pdf.cell(60, 10, "Mean", 1)
+                pdf.cell(60, 10, f"{orig_mean:.4f}", 1)
+                pdf.cell(60, 10, f"{clean_mean:.4f}", 1, ln=True)
+                
+                pdf.cell(60, 10, "Standard Deviation", 1)
+                pdf.cell(60, 10, f"{orig_std:.4f}", 1)
+                pdf.cell(60, 10, f"{clean_std:.4f}", 1, ln=True)
+                
+                pdf.cell(60, 10, "Minimum", 1)
+                pdf.cell(60, 10, f"{orig_min:.4f}", 1)
+                pdf.cell(60, 10, f"{clean_min:.4f}", 1, ln=True)
+                
+                pdf.cell(60, 10, "Maximum", 1)
+                pdf.cell(60, 10, f"{orig_max:.4f}", 1)
+                pdf.cell(60, 10, f"{clean_max:.4f}", 1, ln=True)
+                
+                # Missing values
+                orig_missing = original_df[col_to_analyze].isna().sum()
+                clean_missing = cleaned_df[col_to_analyze].isna().sum()
+                
+                pdf.cell(60, 10, "Missing Values", 1)
+                pdf.cell(60, 10, f"{orig_missing}", 1)
+                pdf.cell(60, 10, f"{clean_missing}", 1, ln=True)
+        except Exception as e:
+            logger.error(f"Error creating statistics table: {e}")
+            pdf.cell(0, 10, "Error creating statistics table", ln=True)
+        
+        # Method-specific information
+        pdf.ln(10)
+        pdf.set_font("Arial", "B", 14)
+        pdf.cell(0, 10, "Method Details", ln=True)
+        pdf.set_font("Arial", "", 12)
+        
+        if method == "quantum":
+            if "quantum_circuit_depth" in metadata:
+                pdf.cell(0, 10, f"Quantum Circuit Depth: {metadata.get('quantum_circuit_depth')}", ln=True)
+            if "simulator_shots" in metadata:
+                pdf.cell(0, 10, f"Simulator Shots: {metadata.get('simulator_shots')}", ln=True)
+                
+        elif method == "deep_learning":
+            if "model_size" in metadata:
+                pdf.cell(0, 10, f"Model Size: {metadata.get('model_size')}", ln=True)
+            if "training_epochs" in metadata:
+                pdf.cell(0, 10, f"Training Epochs: {metadata.get('training_epochs')}", ln=True)
+        
+        # Save the PDF
+        pdf.output(output_path)
+        logger.info(f"Report generated successfully: {output_path}")
+        
+    except Exception as e:
+        logger.error(f"Error generating report: {e}")
+        # Create a simple error report
+        try:
+            pdf = FPDF()
+            pdf.add_page()
+            pdf.set_font("Arial", "B", 16)
+            pdf.cell(0, 10, "Error Generating Report", ln=True, align="C")
+            pdf.set_font("Arial", "", 12)
+            pdf.cell(0, 10, f"Job ID: {job_id}", ln=True)
+            pdf.cell(0, 10, f"Error: {str(e)}", ln=True)
+            pdf.output(output_path)
+        except:
+            logger.error("Failed to create even the error report")
+System Architecture Overview
+The Advanced Hybrid Time-Series Cleaning System is a full-stack solution that combines classical statistical methods, quantum computing algorithms, and deep learning approaches to effectively clean and process time-series data. Here's how the different components work together:
+
+1. Google Colab Integration
+The system is designed for one-click deployment in Google Colab with automatic dependency installation and ngrok tunnel setup for external access.
+
+2. FastAPI Backend
+The backend provides a comprehensive API that handles:
+
+File uploads and data management
+Background job processing
+Real-time progress tracking via WebSockets
+Hybrid cleaning orchestration
+3. Streamlit Frontend
+The frontend offers an intuitive user interface for:
+
+Uploading time-series data files
+Configuring cleaning parameters
+Visualizing results with interactive charts
+Downloading cleaned data and reports
+4. Hybrid Cleaning Engine
+The core of the system consists of three specialized cleaning approaches:
+
+Classical Cleaning
+Uses statistical methods like moving averages, IQR, and z-score
+Efficient for handling missing values and outliers
+Low computational requirements
+Quantum Cleaning
+Leverages quantum algorithms via PennyLane and Qiskit
+Excellent for detecting complex patterns and anomalies
+Can be simulated when quantum hardware isn't available
+Deep Learning Cleaning
+Employs transformer models for sequence prediction
+Learns complex temporal patterns
+Effective for reconstructing missing segments
+5. Intelligent Method Selection
+The system uses a multi-armed bandit algorithm to automatically select the optimal cleaning method based on data characteristics:
+
+Context Extraction: Analyzes time and value features of the data
+Adaptive Learning: Improves selection strategy based on previous results
+Exploration-Exploitation Balance: Tries new methods while favoring proven performers
+Key Features
+Real-time Processing
+
+WebSocket-based streaming for live data
+Background task handling for large datasets
+Interactive Visualization
+
+Compare original vs. cleaned data
+Highlight detected anomalies
+Track cleaning progress in real-time
+Comprehensive Reporting
+
+Detailed PDF reports with statistics and visualizations
+Exportable cleaned data in multiple formats
+Performance metrics for each cleaning method
+Modular Design
+
+Easily extendable with new cleaning algorithms
+Pluggable components for research experimentation
+Language-agnostic API for cross-platform integration
+How to Use
+Launch in Google Colab
+
+Run the installation cell to set up all dependencies
+Start the FastAPI and Streamlit services
+Connect through ngrok tunnels
+Upload Data
+
+Use the Streamlit interface to upload CSV or JSON files
+View data preview and basic statistics
+Configure Cleaning
+
+Select cleaning method or use the hybrid approach
+Adjust advanced parameters if needed
+Process Data
+
+Monitor real-time progress
+View results with interactive visualizations
+Download cleaned data and reports
+The system also supports live data streaming for real-time applications, allowing you to connect to IoT devices, financial feeds, or other streaming sources.
