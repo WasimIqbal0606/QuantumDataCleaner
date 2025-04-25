@@ -96,6 +96,11 @@ class QuantumCleaner:
                 def to(self, *args, **kwargs):
                     # This is a dummy method to handle any unexpected 'to' method calls
                     return self
+                
+                def __iter__(self):
+                    # This makes the object iterable and unpacks like a tuple (df, metadata)
+                    yield self.df
+                    yield self.metadata
                     
             result = ResultObject(cleaned_df, metadata)
             return result
@@ -166,6 +171,11 @@ class QuantumCleaner:
             def to(self, *args, **kwargs):
                 # This is a dummy method to handle any unexpected 'to' method calls
                 return self
+            
+            def __iter__(self):
+                # This makes the object iterable and unpacks like a tuple (df, metadata)
+                yield self.df
+                yield self.metadata
                 
         result = ResultObject(cleaned_df, metadata)
         return result
