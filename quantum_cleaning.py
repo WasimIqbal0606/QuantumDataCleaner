@@ -86,7 +86,19 @@ class QuantumCleaner:
                 "simulator_shots": shots
             }
             
-            return cleaned_df, metadata
+            # Create a proper object - don't return a tuple directly
+            # This prevents the 'tuple' object has no attribute 'to' error
+            class ResultObject:
+                def __init__(self, df, meta):
+                    self.df = df
+                    self.metadata = meta
+                
+                def to(self, *args, **kwargs):
+                    # This is a dummy method to handle any unexpected 'to' method calls
+                    return self
+                    
+            result = ResultObject(cleaned_df, metadata)
+            return result
         
         # Normalize to [0, 1] range
         normalized_data = (data_series - data_min) / (data_max - data_min)
@@ -144,7 +156,19 @@ class QuantumCleaner:
             "simulator_shots": shots
         }
         
-        return cleaned_df, metadata
+        # Create a proper object - don't return a tuple directly
+        # This prevents the 'tuple' object has no attribute 'to' error
+        class ResultObject:
+            def __init__(self, df, meta):
+                self.df = df
+                self.metadata = meta
+            
+            def to(self, *args, **kwargs):
+                # This is a dummy method to handle any unexpected 'to' method calls
+                return self
+                
+        result = ResultObject(cleaned_df, metadata)
+        return result
     
     def quantum_anomaly_detection(self, series: pd.Series, shots: int = 500, layers: int = 2) -> Tuple[List[int], List[float]]:
         """

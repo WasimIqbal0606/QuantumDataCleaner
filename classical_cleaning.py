@@ -127,7 +127,19 @@ class ClassicalCleaner:
             "execution_time_ms": execution_time_ms
         }
         
-        return cleaned_df, metadata
+        # Create a proper object - don't return a tuple directly
+        # This prevents the 'tuple' object has no attribute 'to' error
+        class ResultObject:
+            def __init__(self, df, meta):
+                self.df = df
+                self.metadata = meta
+            
+            def to(self, *args, **kwargs):
+                # This is a dummy method to handle any unexpected 'to' method calls
+                return self
+                
+        result = ResultObject(cleaned_df, metadata)
+        return result
     
     def detect_seasonality(self, series: pd.Series) -> Dict[str, Any]:
         """
