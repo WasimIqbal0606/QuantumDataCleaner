@@ -7,9 +7,97 @@ import base64
 import logging
 import matplotlib.pyplot as plt
 import matplotlib
-from typing import Dict, Any, List, Tuple
+from typing import Dict, Any, List, Tuple, Union, Iterator, Optional
 from datetime import datetime
 from fpdf import FPDF
+
+
+class ResultObject:
+    """
+    Class to encapsulate the result of a cleaning operation.
+    Includes the cleaned dataframe and metadata about the cleaning process.
+    Implements iteration and indexing similar to a DataFrame for convenience.
+    """
+    
+    def __init__(self, df: pd.DataFrame, metadata: Dict[str, Any]):
+        """
+        Initialize the result object.
+        
+        Args:
+            df: The cleaned DataFrame
+            metadata: Dictionary containing metadata about the cleaning process
+        """
+        self.df = df
+        self.metadata = metadata
+    
+    def __getitem__(self, key):
+        """Allow indexing like a DataFrame."""
+        return self.df.__getitem__(key)
+    
+    def __iter__(self) -> Iterator:
+        """Allow iteration like a DataFrame."""
+        return self.df.__iter__()
+    
+    def __len__(self) -> int:
+        """Return the length of the DataFrame."""
+        return len(self.df)
+    
+    @property
+    def values(self) -> np.ndarray:
+        """Return the values as a numpy array."""
+        return self.df.values
+    
+    @property
+    def columns(self) -> pd.Index:
+        """Return the columns of the DataFrame."""
+        return self.df.columns
+    
+    @property
+    def index(self) -> pd.Index:
+        """Return the index of the DataFrame."""
+        return self.df.index
+    
+    def to_numpy(self) -> np.ndarray:
+        """Convert to numpy array."""
+        return self.df.to_numpy()
+    
+    def to_dict(self) -> Dict:
+        """Convert to dictionary."""
+        return {
+            "data": self.df.to_dict(orient="records"),
+            "metadata": self.metadata
+        }
+    
+    def head(self, n: int = 5) -> pd.DataFrame:
+        """Return the first n rows."""
+        return self.df.head(n)
+    
+    def tail(self, n: int = 5) -> pd.DataFrame:
+        """Return the last n rows."""
+        return self.df.tail(n)
+    
+    def describe(self) -> pd.DataFrame:
+        """Generate descriptive statistics."""
+        return self.df.describe()
+    
+    def plot(self, **kwargs) -> plt.Axes:
+        """Plot the DataFrame."""
+        return self.df.plot(**kwargs)
+    
+    def copy(self) -> 'ResultObject':
+        """Create a copy of the ResultObject."""
+        return ResultObject(
+            df=self.df.copy(),
+            metadata=self.metadata.copy()
+        )
+    
+    def iloc(self, *args, **kwargs):
+        """Purely integer-location based indexing."""
+        return self.df.iloc(*args, **kwargs)
+    
+    def loc(self, *args, **kwargs):
+        """Access a group of rows and columns by label(s)."""
+        return self.df.loc(*args, **kwargs)
 
 # Configure logging
 logging.basicConfig(

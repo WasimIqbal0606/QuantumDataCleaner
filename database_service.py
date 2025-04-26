@@ -5,11 +5,128 @@ import logging
 import chromadb
 import pandas as pd
 import numpy as np
-from typing import Dict, List, Tuple, Any, Optional
+from typing import Dict, List, Tuple, Any, Optional, Union
 
 # Setup logger
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+
+class DatabaseService:
+    """
+    Service class that provides a simplified interface to the time series database.
+    This acts as a wrapper around the TimeSeriesDatabase class to provide a more
+    convenient interface for the application.
+    """
+    
+    def __init__(self, persist_directory: str = "db"):
+        """
+        Initialize the database service.
+        
+        Args:
+            persist_directory: Directory where data will be persisted
+        """
+        self.db = TimeSeriesDatabase(persist_directory=persist_directory)
+        logger.info("Initialized DatabaseService")
+    
+    def store_time_series(self, 
+                        df: pd.DataFrame, 
+                        column: str,
+                        metadata: Dict[str, Any],
+                        job_id: Optional[str] = None) -> str:
+        """
+        Store a time series in the database.
+        
+        Args:
+            df: DataFrame containing the time series
+            column: Column name of the time series
+            metadata: Dictionary of metadata about the time series
+            job_id: Optional job ID to use
+            
+        Returns:
+            ID of the stored time series
+        """
+        return self.db.store_time_series(df=df, column=column, metadata=metadata, job_id=job_id)
+    
+    def get_time_series(self, job_id: str) -> Dict[str, Any]:
+        """
+        Get a time series from the database.
+        
+        Args:
+            job_id: ID of the time series
+            
+        Returns:
+            Dictionary with the time series data and metadata
+        """
+        # For now, we only support retrieving metadata since the actual time series
+        # data isn't stored in the database (only embeddings and metadata)
+        metadata = self.db.get_time_series_metadata(job_id)
+        
+        # For a full implementation, we would load the actual time series data from storage
+        # This would require additional logic to store and retrieve the actual data
+        return {
+            "job_id": job_id,
+            "metadata": metadata,
+            # In a real implementation, this would be loaded from storage
+            "df": pd.DataFrame({"value": [0]}),  # Placeholder
+            "column": "value"  # Placeholder
+        }
+    
+    def find_similar_time_series(self, 
+                               df: pd.DataFrame, 
+                               column: str,
+                               n_results: int = 5) -> List[Dict[str, Any]]:
+        """
+        Find similar time series to the given one.
+        
+        Args:
+            df: DataFrame containing the time series
+            column: Column name of the time series
+            n_results: Number of similar time series to return
+            
+        Returns:
+            List of dictionaries containing similar time series info
+        """
+        return self.db.find_similar_time_series(df=df, column=column, n_results=n_results)
+    
+    def list_all_time_series(self, limit: int = 100) -> List[Dict[str, Any]]:
+        """
+        List all stored time series.
+        
+        Args:
+            limit: Maximum number of time series to return
+            
+        Returns:
+            List of dictionaries containing time series info
+        """
+        return self.db.list_all_time_series(limit=limit)
+    
+    def delete_time_series(self, job_id: str) -> bool:
+        """
+        Delete a stored time series.
+        
+        Args:
+            job_id: ID of the time series to delete
+            
+        Returns:
+            True if deleted successfully, False otherwise
+        """
+        return self.db.delete_time_series(job_id)
+    
+    def search_by_metadata(self, 
+                         metadata_filter: Dict[str, Any],
+                         limit: int = 10) -> List[Dict[str, Any]]:
+        """
+        Search for time series by metadata.
+        
+        Args:
+            metadata_filter: Dictionary of metadata filters
+            limit: Maximum number of results to return
+            
+        Returns:
+            List of dictionaries containing matching time series info
+        """
+        return self.db.search_by_metadata(metadata_filter=metadata_filter, limit=limit)
 
 class TimeSeriesDatabase:
     """
