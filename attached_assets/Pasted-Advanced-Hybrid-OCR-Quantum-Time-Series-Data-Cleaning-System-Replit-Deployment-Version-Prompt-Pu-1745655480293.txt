@@ -1,0 +1,69 @@
+Advanced Hybrid OCR + Quantum Time-Series Data Cleaning System — Replit Deployment Version
+Prompt Purpose
+Expand the hybrid time-series data cleaning system by injecting OCR-based data extraction and Quantum-enhanced preprocessing, fully modular, real-time, and ready to run inside Replit's environment using lightweight tunneling (e.g., ngrok or Cloudflared).
+
+Target a high-performance, low-dependency conflict, full-stack system combining:
+
+Optical Character Recognition (OCR) pipelines
+
+Quantum noise reduction and anomaly preprocessing
+
+Deep Learning models
+
+Bandit-based optimization
+
+FastAPI + Streamlit bi-directional live UX
+
+Colab and Replit simultaneous support
+
+Full Architecture Upgrade Details
+
+Layer	New Components
+OCR Layer	Tesseract-OCR (easy install) or Hugging Face LayoutLM for advanced extraction
+Quantum Layer	PennyLane + Qiskit CPU simulators for lightweight quantum operations (denoising, feature extraction)
+Classical Cleaning	pandas, statsmodels, scipy, Prophet
+Deep Learning Cleaner	Hugging Face Informer or TimeSeriesTransformer fine-tuned
+Bandit Selector	Vowpal Wabbit / Scikit-Optimize contextual multi-armed bandits
+Frontend	Streamlit with TailwindCSS, Chart.js, FontAwesome icons, st.file_uploader, st.download_button
+Backend	FastAPI with WebSocket real-time communication, BackgroundTasks for async OCR + cleaning jobs
+Hosting/Access	Replit container, Tunneling via ngrok/Cloudflared, optional Firebase frontend proxy
+Workflow Pipeline
+User Uploads File or Live Data (CSV, Image, PDF)
+
+OCR Module Activated (for images/pdf) → Text/Tabular extraction
+
+Quantum Noise Reduction Layer → (Simulated on CPU via PennyLane)
+
+Bandit Engine decides → Which cleaning pipeline to run
+
+Classical + Deep Cleaning → Fix missing data, anomalies
+
+Streaming Live Updates → Streamlit frontend charts update in real-time
+
+User Downloads cleaned + annotated data
+
+Core Modules Breakdown
+/backend/fastapi_server.py
+
+/ocr/ocr_extractor.py
+
+tesseract_ocr(img/pdf) → Extract tabular/time-series
+
+/quantum/quantum_cleaning.py
+
+quantum_denoise(data) → Reduce quantum noise
+
+/deep_learning/deep_cleaner.py
+
+deep_model_clean(data) → DL transformer model
+
+/bandit/bandit_selector.py
+
+select_best_pipeline(contextual_data)
+
+/frontend/streamlit_ui.py
+
+File uploader, OCR preview, raw vs cleaned data chart
+
+Real-time anomaly graph
+

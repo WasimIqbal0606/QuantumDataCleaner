@@ -14,6 +14,7 @@ from datetime import datetime
 import matplotlib.pyplot as plt
 import matplotlib
 matplotlib.use('Agg')  # Required for non-interactive environments
+from PIL import Image
 
 # Import local modules
 import utils
@@ -22,6 +23,7 @@ from deep_model import DeepModelCleaner
 from bandit_selector import BanditSelector
 from quantum_cleaning import QuantumCleaner
 from database_service import TimeSeriesDatabase
+from ocr_extractor import OCRExtractor
 
 # Set page config
 st.set_page_config(
@@ -56,13 +58,13 @@ if 'progress' not in st.session_state:
 if 'report_path' not in st.session_state:
     st.session_state.report_path = None
 
-# Initialize cleaners
-# Initialize services and cleaners
+# Initialize cleaners and services
 classical_cleaner = ClassicalCleaner()
 deep_model_cleaner = DeepModelCleaner()
 quantum_cleaner = QuantumCleaner()
 bandit_selector = BanditSelector()
 db_service = TimeSeriesDatabase() # Initialize the ChromaDB service
+ocr_extractor = OCRExtractor() # Initialize the OCR extractor
 
 # Title and introduction
 st.title("Hybrid Time-Series Cleaning System")
@@ -75,8 +77,22 @@ and download the results with comprehensive reports.
 # Sidebar for configuration
 st.sidebar.header("Configuration")
 
-# File upload
-upload_method = st.sidebar.radio("Upload Method", ["Upload File", "Use Example Data"])
+# Initialize additional session state variables for OCR
+if 'ocr_extracted_df' not in st.session_state:
+    st.session_state.ocr_extracted_df = None
+if 'ocr_metadata' not in st.session_state:
+    st.session_state.ocr_metadata = {}
+if 'ocr_source_type' not in st.session_state:
+    st.session_state.ocr_source_type = None
+if 'ocr_use_quantum' not in st.session_state:
+    st.session_state.ocr_use_quantum = False
+if 'ocr_extracted_text' not in st.session_state:
+    st.session_state.ocr_extracted_text = None
+if 'ocr_image' not in st.session_state:
+    st.session_state.ocr_image = None
+
+# File upload options
+upload_method = st.sidebar.radio("Upload Method", ["Upload File", "OCR Extract", "Use Example Data"])
 
 if upload_method == "Upload File":
     uploaded_file = st.sidebar.file_uploader("Upload Time-Series Data", type=["csv", "json"])
@@ -115,7 +131,107 @@ if upload_method == "Upload File":
                 
         except Exception as e:
             st.error(f"Error loading the file: {str(e)}")
-else:
+
+elif upload_method == "OCR Extract":
+    st.sidebar.subheader("OCR Time-Series Extraction")
+    
+    # OCR options
+    st.sidebar.info("Extract time-series data from images or PDFs using OCR.")
+    
+    ocr_source_type = st.sidebar.radio("Source Type", ["Image", "PDF"])
+    
+    # Option to use quantum-inspired enhancement
+    use_quantum = st.sidebar.checkbox("Use Quantum-Inspired Enhancement", value=True,
+                                    help="Apply quantum-inspired algorithms for better image processing")
+    
+    if ocr_source_type == "Image":
+        uploaded_image = st.sidebar.file_uploader("Upload Image", type=["png", "jpg", "jpeg", "bmp"])
+        
+        if uploaded_image is not None:
+            # Process the image
+            try:
+                # Convert to PIL Image
+                image = Image.open(uploaded_image)
+                
+                # Save to session state
+                st.session_state.ocr_image = image
+                st.session_state.ocr_source_type = "image"
+                st.session_state.ocr_use_quantum = use_quantum
+                
+                # Extract time-series data
+                extracted_df, metadata = ocr_extractor.extract_time_series(
+                    image, "image", use_quantum=use_quantum)
+                
+                # Also extract text for display
+                text = ocr_extractor.extract_text_from_image(image, use_quantum=use_quantum)
+                st.session_state.ocr_extracted_text = text
+                
+                # Save results to session state
+                st.session_state.ocr_extracted_df = extracted_df
+                st.session_state.ocr_metadata = metadata
+                
+                if extracted_df is not None:
+                    st.session_state.uploaded_df = extracted_df
+                    
+                    # Select a numeric column if available
+                    numeric_cols = extracted_df.select_dtypes(include=[np.number]).columns.tolist()
+                    if numeric_cols:
+                        if metadata["value_column"] in numeric_cols:
+                            st.session_state.selected_column = metadata["value_column"]
+                        else:
+                            st.session_state.selected_column = numeric_cols[0]
+                            
+                    st.sidebar.success("Successfully extracted time-series data!")
+                else:
+                    st.sidebar.warning("Could not extract time-series data from the image.")
+                
+            except Exception as e:
+                st.sidebar.error(f"Error processing image: {str(e)}")
+    
+    elif ocr_source_type == "PDF":
+        uploaded_pdf = st.sidebar.file_uploader("Upload PDF", type=["pdf"])
+        
+        if uploaded_pdf is not None:
+            # Process the PDF
+            try:
+                # Read PDF bytes
+                pdf_bytes = uploaded_pdf.read()
+                
+                # Save to session state
+                st.session_state.ocr_source_type = "pdf"
+                st.session_state.ocr_use_quantum = use_quantum
+                
+                # Extract time-series data
+                extracted_df, metadata = ocr_extractor.extract_time_series(
+                    pdf_bytes, "pdf", use_quantum=use_quantum)
+                
+                # Also extract text for display
+                text, _ = ocr_extractor.process_pdf(pdf_bytes, use_quantum=use_quantum)
+                st.session_state.ocr_extracted_text = text
+                
+                # Save results to session state
+                st.session_state.ocr_extracted_df = extracted_df
+                st.session_state.ocr_metadata = metadata
+                
+                if extracted_df is not None:
+                    st.session_state.uploaded_df = extracted_df
+                    
+                    # Select a numeric column if available
+                    numeric_cols = extracted_df.select_dtypes(include=[np.number]).columns.tolist()
+                    if numeric_cols:
+                        if metadata["value_column"] in numeric_cols:
+                            st.session_state.selected_column = metadata["value_column"]
+                        else:
+                            st.session_state.selected_column = numeric_cols[0]
+                            
+                    st.sidebar.success("Successfully extracted time-series data!")
+                else:
+                    st.sidebar.warning("Could not extract time-series data from the PDF.")
+                
+            except Exception as e:
+                st.sidebar.error(f"Error processing PDF: {str(e)}")
+
+else:  # Use Example Data
     if st.sidebar.button("Load Example Time-Series Data"):
         # Generate example time-series data
         np.random.seed(42)
