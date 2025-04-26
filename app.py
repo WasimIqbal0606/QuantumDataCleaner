@@ -281,7 +281,28 @@ if st.session_state.uploaded_df is not None:
                     time.sleep(0.2)
                 
                 # Clean data
-                cleaned_df, metadata = classical_cleaner.clean(df, selected_col, params)
+                result = classical_cleaner.clean(df, selected_col, params)
+                # Safely unpack the result, as it might be a tuple or ResultObject with __iter__
+                try:
+                    # Handle both tuple and ResultObject with __iter__
+                    if hasattr(result, '__iter__') and not isinstance(result, (pd.DataFrame, tuple)):
+                        cleaned_df, metadata = result
+                    elif isinstance(result, tuple):
+                        cleaned_df, metadata = result
+                    else:
+                        # Fallback - assume result is the dataframe itself
+                        cleaned_df = result
+                        metadata = {}
+                except Exception as e:
+                    st.error(f"Error unpacking result: {e}")
+                    if hasattr(result, 'df') and hasattr(result, 'metadata'):
+                        cleaned_df = result.df
+                        metadata = result.metadata
+                    else:
+                        st.error("Could not unpack or access result attributes")
+                        cleaned_df = df.copy()
+                        metadata = {"error": "Failed to process data"}
+                
                 st.session_state.metadata.update(metadata)
                 
                 # Update progress
@@ -305,7 +326,28 @@ if st.session_state.uploaded_df is not None:
                     time.sleep(0.5)
                     
                 # Clean data
-                cleaned_df, metadata = deep_model_cleaner.clean(df, selected_col, params)
+                result = deep_model_cleaner.clean(df, selected_col, params)
+                # Safely unpack the result, as it might be a tuple or ResultObject with __iter__
+                try:
+                    # Handle both tuple and ResultObject with __iter__
+                    if hasattr(result, '__iter__') and not isinstance(result, (pd.DataFrame, tuple)):
+                        cleaned_df, metadata = result
+                    elif isinstance(result, tuple):
+                        cleaned_df, metadata = result
+                    else:
+                        # Fallback - assume result is the dataframe itself
+                        cleaned_df = result
+                        metadata = {}
+                except Exception as e:
+                    st.error(f"Error unpacking result: {e}")
+                    if hasattr(result, 'df') and hasattr(result, 'metadata'):
+                        cleaned_df = result.df
+                        metadata = result.metadata
+                    else:
+                        st.error("Could not unpack or access result attributes")
+                        cleaned_df = df.copy()
+                        metadata = {"error": "Failed to process data"}
+                
                 st.session_state.metadata.update(metadata)
             
             elif cleaning_method == "Quantum (Simulated)":
@@ -323,7 +365,28 @@ if st.session_state.uploaded_df is not None:
                     time.sleep(0.3)
                 
                 # Clean data
-                cleaned_df, metadata = quantum_cleaner.clean(df, selected_col, params)
+                result = quantum_cleaner.clean(df, selected_col, params)
+                # Safely unpack the result, as it might be a tuple or ResultObject with __iter__
+                try:
+                    # Handle both tuple and ResultObject with __iter__
+                    if hasattr(result, '__iter__') and not isinstance(result, (pd.DataFrame, tuple)):
+                        cleaned_df, metadata = result
+                    elif isinstance(result, tuple):
+                        cleaned_df, metadata = result
+                    else:
+                        # Fallback - assume result is the dataframe itself
+                        cleaned_df = result
+                        metadata = {}
+                except Exception as e:
+                    st.error(f"Error unpacking result: {e}")
+                    if hasattr(result, 'df') and hasattr(result, 'metadata'):
+                        cleaned_df = result.df
+                        metadata = result.metadata
+                    else:
+                        st.error("Could not unpack or access result attributes")
+                        cleaned_df = df.copy()
+                        metadata = {"error": "Failed to process data"}
+                
                 st.session_state.metadata.update(metadata)
                 
             elif cleaning_method == "Hybrid (Auto-select)":
@@ -345,7 +408,23 @@ if st.session_state.uploaded_df is not None:
                         progress_bar.progress(i * 0.1)
                         status_placeholder.info(f"Applying classical cleaning... ({i*10}%)")
                         time.sleep(0.3)
-                    cleaned_df, metadata = classical_cleaner.clean(df, selected_col, params["classical"])
+                    result = classical_cleaner.clean(df, selected_col, params["classical"])
+                    try:
+                        if hasattr(result, '__iter__') and not isinstance(result, (pd.DataFrame, tuple)):
+                            cleaned_df, metadata = result
+                        elif isinstance(result, tuple):
+                            cleaned_df, metadata = result
+                        else:
+                            cleaned_df = result
+                            metadata = {}
+                    except Exception as e:
+                        st.error(f"Error unpacking classical result: {e}")
+                        if hasattr(result, 'df') and hasattr(result, 'metadata'):
+                            cleaned_df = result.df
+                            metadata = result.metadata
+                        else:
+                            cleaned_df = df.copy()
+                            metadata = {"error": "Failed to process data"}
                 
                 elif selected_method == "deep":
                     status_placeholder.info(f"Bandit selected Deep Learning method based on data characteristics")
@@ -353,7 +432,23 @@ if st.session_state.uploaded_df is not None:
                         progress_bar.progress(i * 0.1)
                         status_placeholder.info(f"Applying deep learning cleaning... ({i*10}%)")
                         time.sleep(0.3)
-                    cleaned_df, metadata = deep_model_cleaner.clean(df, selected_col, params["deep"])
+                    result = deep_model_cleaner.clean(df, selected_col, params["deep"])
+                    try:
+                        if hasattr(result, '__iter__') and not isinstance(result, (pd.DataFrame, tuple)):
+                            cleaned_df, metadata = result
+                        elif isinstance(result, tuple):
+                            cleaned_df, metadata = result
+                        else:
+                            cleaned_df = result
+                            metadata = {}
+                    except Exception as e:
+                        st.error(f"Error unpacking deep learning result: {e}")
+                        if hasattr(result, 'df') and hasattr(result, 'metadata'):
+                            cleaned_df = result.df
+                            metadata = result.metadata
+                        else:
+                            cleaned_df = df.copy()
+                            metadata = {"error": "Failed to process data"}
                 
                 elif selected_method == "quantum":
                     status_placeholder.info(f"Bandit selected Quantum method based on data characteristics")
@@ -361,7 +456,23 @@ if st.session_state.uploaded_df is not None:
                         progress_bar.progress(i * 0.1)
                         status_placeholder.info(f"Applying quantum cleaning... ({i*10}%)")
                         time.sleep(0.3)
-                    cleaned_df, metadata = quantum_cleaner.clean(df, selected_col, params["quantum"])
+                    result = quantum_cleaner.clean(df, selected_col, params["quantum"])
+                    try:
+                        if hasattr(result, '__iter__') and not isinstance(result, (pd.DataFrame, tuple)):
+                            cleaned_df, metadata = result
+                        elif isinstance(result, tuple):
+                            cleaned_df, metadata = result
+                        else:
+                            cleaned_df = result
+                            metadata = {}
+                    except Exception as e:
+                        st.error(f"Error unpacking quantum result: {e}")
+                        if hasattr(result, 'df') and hasattr(result, 'metadata'):
+                            cleaned_df = result.df
+                            metadata = result.metadata
+                        else:
+                            cleaned_df = df.copy()
+                            metadata = {"error": "Failed to process data"}
                 
                 metadata["selected_method"] = selected_method
                 st.session_state.metadata.update(metadata)
