@@ -34,6 +34,67 @@ class ResultObject:
         # This allows the object to be unpacked like: cleaned_df, metadata = result
         yield self.df
         yield self.metadata
+    
+    def __getitem__(self, key):
+        # Forward DataFrame-like indexing to the inner DataFrame
+        return self.df.__getitem__(key)
+    
+    def __len__(self):
+        # Return length of DataFrame
+        return len(self.df)
+    
+    # Forward common DataFrame properties and methods
+    @property
+    def columns(self):
+        return self.df.columns
+    
+    @property
+    def index(self):
+        return self.df.index
+    
+    def head(self, *args, **kwargs):
+        return self.df.head(*args, **kwargs)
+    
+    def copy(self, *args, **kwargs):
+        # Return a new ResultObject with a copy of the DataFrame
+        return ResultObject(self.df.copy(*args, **kwargs), self.metadata.copy())
+    
+    # Add any other DataFrame methods that might be needed by app.py
+    def loc(self, *args, **kwargs):
+        return self.df.loc(*args, **kwargs)
+    
+    def iloc(self, *args, **kwargs):
+        return self.df.iloc(*args, **kwargs)
+    
+    def __getattr__(self, name):
+        # Forward any other attribute access to the DataFrame
+        if hasattr(self.df, name):
+            return getattr(self.df, name)
+        raise AttributeError(f"'ResultObject' object has no attribute '{name}'")
+    
+    def drop(self, *args, **kwargs):
+        return self.df.drop(*args, **kwargs)
+    
+    def reset_index(self, *args, **kwargs):
+        return self.df.reset_index(*args, **kwargs)
+        
+    def fillna(self, *args, **kwargs):
+        return self.df.fillna(*args, **kwargs)
+        
+    def select_dtypes(self, *args, **kwargs):
+        return self.df.select_dtypes(*args, **kwargs)
+        
+    def interpolate(self, *args, **kwargs):
+        return self.df.interpolate(*args, **kwargs)
+        
+    def to_csv(self, *args, **kwargs):
+        return self.df.to_csv(*args, **kwargs)
+        
+    def to_dict(self, *args, **kwargs):
+        return self.df.to_dict(*args, **kwargs)
+        
+    def __setitem__(self, key, value):
+        self.df.__setitem__(key, value)
 
 class QuantumCleaner:
     """
@@ -46,7 +107,7 @@ class QuantumCleaner:
         """Initialize the quantum cleaner."""
         logger.info("Initializing QuantumCleaner")
     
-    def clean(self, df: pd.DataFrame, column: str, params: Dict[str, Any]) -> Tuple[pd.DataFrame, Dict[str, Any]]:
+    def clean(self, df: pd.DataFrame, column: str, params: Dict[str, Any]) -> ResultObject:
         """
         Clean the time-series data using quantum-inspired methods.
         
@@ -59,8 +120,8 @@ class QuantumCleaner:
                 - simulator: Whether to use simulator (should always be True)
         
         Returns:
-            Tuple of (cleaned_df, metadata)
-                - cleaned_df: DataFrame with cleaned data
+            ResultObject containing:
+                - df: DataFrame with cleaned data
                 - metadata: Dictionary with information about the cleaning process
         """
         start_time = time.time()
@@ -107,22 +168,7 @@ class QuantumCleaner:
             }
             
             # Create a proper object - don't return a tuple directly
-            # This prevents the 'tuple' object has no attribute 'to' error
-            class ResultObject:
-                def __init__(self, df, meta):
-                    self.df = df
-                    self.metadata = meta
-                
-                def to(self, *args, **kwargs):
-                    # Mock method to handle .to() calls, simply return self
-                    return self
-                
-                def __iter__(self):
-                    # Make this object iterable to support tuple unpacking
-                    # This allows the object to be unpacked like: cleaned_df, metadata = result
-                    yield self.df
-                    yield self.metadata
-                    
+            # Use the top-level ResultObject instead of redefining
             result = ResultObject(cleaned_df, metadata)
             return result
         
@@ -183,21 +229,7 @@ class QuantumCleaner:
         }
         
         # Create a proper object - don't return a tuple directly
-        # This prevents the 'tuple' object has no attribute 'to' error
-        class ResultObject:
-            def __init__(self, df, meta):
-                self.df = df
-                self.metadata = meta
-            
-            def to(self, *args, **kwargs):
-                # This is a dummy method to handle any unexpected 'to' method calls
-                return self
-            
-            def __iter__(self):
-                # This makes the object iterable and unpacks like a tuple (df, metadata)
-                yield self.df
-                yield self.metadata
-                
+        # Use the top-level ResultObject instead of redefining
         result = ResultObject(cleaned_df, metadata)
         return result
     
