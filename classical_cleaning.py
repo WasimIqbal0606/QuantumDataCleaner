@@ -3,6 +3,7 @@ import pandas as pd
 from typing import Dict, Any, Tuple
 import time
 import logging
+from quantum_cleaning import ResultObject  # Import the common ResultObject
 
 # Configure logging
 logging.basicConfig(
