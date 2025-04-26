@@ -29,7 +29,7 @@ class ClassicalCleaner:
         """Initialize the classical cleaner."""
         logger.info("Initializing ClassicalCleaner")
     
-    def clean(self, df: pd.DataFrame, column: str, params: Dict[str, Any]) -> Tuple[pd.DataFrame, Dict[str, Any]]:
+    def clean(self, df: pd.DataFrame, column: str, params: Dict[str, Any]) -> ResultObject:
         """
         Clean the time-series data using classical statistical methods.
         
@@ -42,8 +42,8 @@ class ClassicalCleaner:
                 - use_median: Whether to use median filtering (True) or mean filtering (False)
         
         Returns:
-            Tuple of (cleaned_df, metadata)
-                - cleaned_df: DataFrame with cleaned data
+            ResultObject containing:
+                - df: DataFrame with cleaned data
                 - metadata: Dictionary with information about the cleaning process
         """
         start_time = time.time()
@@ -131,21 +131,7 @@ class ClassicalCleaner:
         }
         
         # Create a proper object - don't return a tuple directly
-        # This prevents the 'tuple' object has no attribute 'to' error
-        class ResultObject:
-            def __init__(self, df, meta):
-                self.df = df
-                self.metadata = meta
-            
-            def to(self, *args, **kwargs):
-                # This is a dummy method to handle any unexpected 'to' method calls
-                return self
-            
-            def __iter__(self):
-                # This makes the object iterable and unpacks like a tuple (df, metadata)
-                yield self.df
-                yield self.metadata
-                
+        # Use imported ResultObject from quantum_cleaning.py
         result = ResultObject(cleaned_df, metadata)
         return result
     
