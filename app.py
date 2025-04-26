@@ -624,7 +624,7 @@ if st.session_state.uploaded_df is not None:
 # Main content area
 if st.session_state.uploaded_df is not None:
     # Tabs for different views
-    tabs = st.tabs(["Data Preview", "Cleaning Results", "Detailed Analysis", "Logs and Reports", "Database & Search"])
+    tabs = st.tabs(["Data Preview", "Cleaning Results", "Detailed Analysis", "Logs and Reports", "Database & Search", "OCR Extraction"])
     
     # Data Preview Tab
     with tabs[0]:

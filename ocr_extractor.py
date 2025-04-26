@@ -215,50 +215,61 @@ class OCRExtractor:
         Returns:
             List of extracted tables as pandas DataFrames
         """
-        # Filter out non-text entries
-        text_data = ocr_data[ocr_data['text'].notna() & (ocr_data['text'].str.strip() != '')]
-        
-        # Group by block_num to get individual tables
-        tables = []
-        for block_num, block_data in text_data.groupby('block_num'):
-            # Sort by line and word position
-            sorted_data = block_data.sort_values(by=['par_num', 'line_num', 'word_num'])
+        try:
+            # Filter out non-text entries and ensure text column is string type
+            ocr_data['text'] = ocr_data['text'].astype(str)
+            text_data = ocr_data[ocr_data['text'].notna() & (ocr_data['text'].str.strip() != '')]
             
-            # Group words into lines
-            lines = []
-            current_line = []
-            current_line_num = -1
-            
-            for _, row in sorted_data.iterrows():
-                if row['line_num'] != current_line_num:
-                    if current_line:
-                        lines.append(' '.join(current_line))
-                    current_line = [row['text']]
-                    current_line_num = row['line_num']
-                else:
-                    current_line.append(row['text'])
-            
-            # Add the last line
-            if current_line:
-                lines.append(' '.join(current_line))
-            
-            # Try to convert lines to a table
-            if len(lines) > 1:
-                # Split each line by whitespace to create rows
-                rows = [re.split(r'\s{2,}', line) for line in lines]
+            # Group by block_num to get individual tables
+            tables = []
+            for block_num, block_data in text_data.groupby('block_num'):
+                # Sort by line and word position
+                sorted_data = block_data.sort_values(by=['par_num', 'line_num', 'word_num'])
                 
-                # Find the maximum number of columns
-                max_cols = max(len(row) for row in rows)
+                # Group words into lines
+                lines = []
+                current_line = []
+                current_line_num = -1
                 
-                # Pad rows with fewer columns
-                padded_rows = [row + [''] * (max_cols - len(row)) for row in rows]
+                for _, row in sorted_data.iterrows():
+                    if row['line_num'] != current_line_num:
+                        if current_line:
+                            lines.append(' '.join(current_line))
+                        current_line = [row['text']]
+                        current_line_num = row['line_num']
+                    else:
+                        current_line.append(row['text'])
                 
-                # Create a DataFrame
-                if padded_rows:
-                    table = pd.DataFrame(padded_rows[1:], columns=padded_rows[0])
-                    tables.append(table)
-        
-        return tables
+                # Add the last line
+                if current_line:
+                    lines.append(' '.join(current_line))
+                
+                # Try to convert lines to a table
+                if len(lines) > 1:
+                    # Split each line by whitespace to create rows
+                    rows = [re.split(r'\s{2,}', line) for line in lines]
+                    
+                    # Find the maximum number of columns
+                    max_cols = max(len(row) for row in rows) if rows else 0
+                    
+                    # Pad rows with fewer columns
+                    padded_rows = [row + [''] * (max_cols - len(row)) for row in rows]
+                    
+                    # Create a DataFrame
+                    if padded_rows and len(padded_rows) > 1:
+                        if len(padded_rows[0]) > 0:  # Ensure there are column names
+                            table = pd.DataFrame(padded_rows[1:], columns=padded_rows[0])
+                            tables.append(table)
+                        else:
+                            # Create with generic column names
+                            columns = [f"Col_{i}" for i in range(max_cols)]
+                            table = pd.DataFrame(padded_rows, columns=columns)
+                            tables.append(table)
+            
+            return tables
+        except Exception as e:
+            logger.error(f"Error converting OCR data to tables: {str(e)}")
+            return []
     
     def process_pdf(self, pdf_file: Union[str, bytes], 
                    use_quantum: bool = False) -> Tuple[str, List[pd.DataFrame]]:
