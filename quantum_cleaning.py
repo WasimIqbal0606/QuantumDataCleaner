@@ -15,6 +15,26 @@ logging.basicConfig(
 )
 logger = logging.getLogger("quantum_cleaning")
 
+# Define ResultObject class at the top level to prevent duplicates and name collision
+class ResultObject:
+    """
+    Wrapper class for cleaning results to make them both iterable and 
+    provide attribute access. This allows both tuple unpacking and method calls.
+    """
+    def __init__(self, df, meta):
+        self.df = df
+        self.metadata = meta
+    
+    def to(self, *args, **kwargs):
+        # Mock method to handle .to() calls, simply return self
+        return self
+    
+    def __iter__(self):
+        # Make this object iterable to support tuple unpacking
+        # This allows the object to be unpacked like: cleaned_df, metadata = result
+        yield self.df
+        yield self.metadata
+
 class QuantumCleaner:
     """
     Class implementing quantum-inspired methods for time-series cleaning.
@@ -94,11 +114,12 @@ class QuantumCleaner:
                     self.metadata = meta
                 
                 def to(self, *args, **kwargs):
-                    # This is a dummy method to handle any unexpected 'to' method calls
+                    # Mock method to handle .to() calls, simply return self
                     return self
                 
                 def __iter__(self):
-                    # This makes the object iterable and unpacks like a tuple (df, metadata)
+                    # Make this object iterable to support tuple unpacking
+                    # This allows the object to be unpacked like: cleaned_df, metadata = result
                     yield self.df
                     yield self.metadata
                     
@@ -343,14 +364,38 @@ class QuantumCleaner:
                 # Combine basis functions
                 pred_values = []
                 for basis in basis_funcs:
-                    pred = np.sum(basis * weights * valid_values) / np.sum(basis * weights + 1e-10)
+                    # Make sure all arrays have compatible shapes for element-wise multiplication
+                    basis_array = np.array(basis)
+                    weights_array = np.array(weights)
+                    values_array = np.array(valid_values)
+                    
+                    # Ensure all arrays have the same length
+                    min_length = min(len(basis_array), len(weights_array), len(values_array))
+                    basis_array = basis_array[:min_length]
+                    weights_array = weights_array[:min_length]
+                    values_array = values_array[:min_length]
+                    
+                    # Safe multiplication with arrays of the same length
+                    numerator = np.sum(basis_array * weights_array * values_array)
+                    denominator = np.sum(basis_array * weights_array) + 1e-10
+                    pred = numerator / denominator
                     pred_values.append(pred)
                 
                 # Final prediction is average of basis predictions
                 pred_value = np.mean(pred_values)
             else:
                 # Simple weighted average for layer=1
-                pred_value = np.sum(weights * valid_values)
+                # Ensure arrays have compatible shapes for element-wise multiplication
+                weights_array = np.array(weights)
+                values_array = np.array(valid_values)
+                
+                # Ensure arrays have the same length
+                min_length = min(len(weights_array), len(values_array))
+                weights_array = weights_array[:min_length]
+                values_array = values_array[:min_length]
+                
+                # Safe multiplication with arrays of the same length
+                pred_value = np.sum(weights_array * values_array)
             
             # Clip to [0, 1] since data is normalized
             pred_value = max(0, min(1, pred_value))
